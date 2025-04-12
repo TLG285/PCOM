@@ -4,15 +4,25 @@
 #include <arpa/inet.h> /* ntoh, hton and inet_ functions */
 #include <string.h>
 #include <stdbool.h>
-// definim tipurile de protocoale:
+
 #define ETHERTYPE_IP 0x0800	 /* IP protocol */
 #define ETHERTYPE_ARP 0x0806 /* ARP protocol */
+#define ARP_PACKET_LEN 42	 // in bytes
+#define ARP_OPCODE_REQ 1
+#define ARP_OPCODE_RECV 2
 #define TIME_EXCEDED_CODE 11
 #define TIME_EXCEDED_TYPE 0
 #define DEST_UNREACHABLE_CODE 0
 #define DEST_UNREACHABLE_TYPE 3
 
+typedef struct packet
+{
+	char *buf;
+	int len;
+} packet;
+
 // varianta cu trie
+
 typedef struct node
 {
 	struct node *left;				// bit de 0
@@ -137,6 +147,10 @@ struct node *best_match_node(struct node *tree, uint32_t ip)
 // functie de cautare in tabela arp
 struct arp_table_entry *find_arp_entry(struct arp_table_entry *arp_table, int len, uint32_t ip)
 {
+	if (len == 0)
+	{
+		return NULL;
+	}
 	for (int i = 0; i < len; i++)
 	{
 		if (ip == arp_table[i].ip)
@@ -189,7 +203,7 @@ void send_icmp_req(char *buf, int code, int type, int out_interface)
 
 	// Construim pachetul
 	// Copiem cei 64 biti inainte de a modifica payload-ul de dupa ip header in icmp(payload)
-	memcpy(buf + sizeof(struct ether_hdr) + 2 * sizeof(struct ip_hdr) + sizeof(struct icmp_hdr), &icmp_hdr + sizeof(struct icmp_hdr), 64);
+	memcpy(buf + sizeof(struct ether_hdr) + 2 * sizeof(struct ip_hdr) + sizeof(struct icmp_hdr), &icmp_hdr + sizeof(struct icmp_hdr), 8);
 	// adaug header-ul icmp
 	memcpy(buf + sizeof(struct ether_hdr) +
 			   sizeof(struct ip_hdr),
@@ -199,27 +213,56 @@ void send_icmp_req(char *buf, int code, int type, int out_interface)
 		   &buf + sizeof(struct ether_hdr), sizeof(struct ip_hdr));
 	// trimit pachetul
 	free(icmp_hdr);
-	send_to_link(sizeof(struct ether_hdr) + 2 * sizeof(struct ip_hdr) + 64 + sizeof(struct icmp_hdr), buf, out_interface);
+	send_to_link(sizeof(struct ether_hdr) + 2 * sizeof(struct ip_hdr) + 8 + sizeof(struct icmp_hdr), buf, out_interface);
 }
 
 /*
 	@interface e interfata din tabela de rutare
 	@ip e ip-ul caruia vrem sa ii gasim adresa mac
 */
-void send_arp_req(int interface, uint32_t ip)
+void send_arp_req(int interface, uint32_t ip_dest)
 {
-	char *frame = calloc(MAX_PACKET_LEN, sizeof(char));
+	int len = ARP_PACKET_LEN;
+	char *frame = calloc(len, sizeof(uint8_t));
 	struct ether_hdr *eth_hdr = (struct ether_hdr *)frame;
 	struct arp_hdr *arp_hdr = (struct arp_hdr *)(frame + sizeof(struct ether_hdr));
 	memset(eth_hdr->ethr_dhost, 0xFF, 6);
 	get_interface_mac(interface, eth_hdr->ethr_shost);
 	eth_hdr->ethr_type = htons(ETHERTYPE_ARP);
-	arp_hdr->proto_type = htons(1);		 // request
-	arp_hdr->proto_type = htons(0x0800); // IPv4
-	arp_hdr->hw_len = 6;				 // MAC length
-	arp_hdr->proto_len = 4;				 // IPv4 length
-	arp_hdr->opcode = htons(1);
-	send_to_link(sizeof(eth_hdr) + sizeof(arp_hdr), frame, interface);
+	arp_hdr->opcode = htons(ARP_OPCODE_REQ);   // request
+	arp_hdr->proto_type = htons(ETHERTYPE_IP); // IPv4
+	arp_hdr->hw_len = 6;					   // MAC length
+	arp_hdr->proto_len = 4;					   // IPv4 length
+	arp_hdr->hw_type = htons(1); 
+	memcpy(arp_hdr->shwa, eth_hdr->ethr_shost, 6);
+	arp_hdr->sprotoa = inet_addr(get_interface_ip(interface));
+	arp_hdr->tprotoa = ip_dest;
+	send_to_link(len, frame, interface);
+}
+
+/*functie care trimite un arp response*/
+void send_arp_reply(char *frame, int len, int interface)
+{
+	struct ether_hdr *eth_hdr = (struct ether_hdr *)frame;
+	struct arp_hdr *arp_hdr = (struct arp_hdr *)(frame + sizeof(struct ether_hdr));
+	uint8_t temp_mac[6];
+	memcpy(temp_mac, eth_hdr->ethr_shost, 6);
+	get_interface_mac(interface, eth_hdr->ethr_shost);
+	memcpy(eth_hdr->ethr_dhost, temp_mac, 6);
+	eth_hdr->ethr_type = htons(ETHERTYPE_ARP);
+	arp_hdr->opcode = htons(ARP_OPCODE_RECV);  // request
+	arp_hdr->proto_type = htons(ETHERTYPE_IP); // IPv4
+	arp_hdr->hw_len = 6;					   // MAC length
+	arp_hdr->proto_len = 4;					   // IPv4 length
+
+	memcpy(arp_hdr->thwa, temp_mac, 6);			 // punem adresa mac destinatie in arp
+	get_interface_mac(interface, arp_hdr->shwa); // punem adresa mac sursa in arp
+	// inversam adresele ip
+	uint32_t tmp_ip = arp_hdr->sprotoa;
+	arp_hdr->sprotoa = arp_hdr->tprotoa;
+	arp_hdr->tprotoa = tmp_ip;
+
+	send_to_link(len, frame, interface);
 }
 
 int main(int argc, char *argv[])
@@ -237,8 +280,11 @@ int main(int argc, char *argv[])
 	int route_table_len = read_prefix_tree(argv[1], route_table, prefix_tree_root);
 
 	//_________________________tabela arp si dimensiunea ei________________________________
-	struct arp_table_entry *arp_table = calloc(7, sizeof(struct arp_table_entry));
-	int arp_table_len = parse_arp_table("arp_table.txt", arp_table);
+	struct arp_table_entry *arp_table = calloc(8, sizeof(struct arp_table_entry));
+	int arp_table_len = 0;
+	//________________________coada si initializarea ei____________________________________
+	struct queue *packets = create_queue();
+
 	while (1)
 	{
 
@@ -262,7 +308,7 @@ int main(int argc, char *argv[])
 			/* code */
 			struct ip_hdr *ip_hdr = (struct ip_hdr *)(buf + (sizeof(struct ether_hdr)));
 			uint32_t ip_interfata = inet_addr(get_interface_ip(interface)); // valoarea adresei in format big endian, mare atentie
-			if (ntohl(ip_hdr->dest_addr == ip_interfata))
+			if (ntohl(ip_hdr->dest_addr) == ip_interfata)
 			{
 				printf("Adresa destinatie este chiar cea a routerului");
 				// trebuie sa verific daca e de tip icmp
@@ -291,11 +337,14 @@ int main(int argc, char *argv[])
 				// verificam ttl:
 				// ttl-ul nu il inversez ca e pe 8 biti si o sa fie acelasi
 				// si pe little endian si pe big endian
-
 				struct node *best_match = best_match_node(prefix_tree_root, ntohl(ip_hdr->dest_addr));
-				//struct route_table_entry *route_match = find_route_table_match(route_table, route_table_len, ip_hdr->dest_addr);
-				if(best_match == NULL){
-					//trimite catre un host necunoscut
+				// struct route_table_entry *route_match = find_route_table_match(route_table, route_table_len, ip_hdr->dest_addr);
+				if (best_match == NULL)
+				{
+					// trimite catre un host necunoscut
+					// TO DO: ICMP de tip Destination unreachable
+					// nu exista destinatie pentru acest caz
+					// send_icmp_req(buf, DEST_UNREACHABLE_CODE, DEST_UNREACHABLE_TYPE, route_match->interface);
 					continue;
 				}
 				struct route_table_entry *route_match = best_match->info;
@@ -309,31 +358,88 @@ int main(int argc, char *argv[])
 
 				ip_hdr->ttl = ip_hdr->ttl - 1;
 
-				// if (route_match == NULL)
-				// {
-				// 	// TO DO: ICMP de tip Destination unreachable
-				// 	// nu exista destinatie pentru acest caz
-				// 	// send_icmp_req(buf, DEST_UNREACHABLE_CODE, DEST_UNREACHABLE_TYPE, route_match->interface);
-				// 	continue;
-				// }
-				// nu actualizez ce trebuie, nici macar nu modific adresa ip cum trebuie
-				// actualizare checksum
-
 				// trimiterea pachetului
-				struct arp_table_entry *arp_entry = find_arp_entry(arp_table, arp_table_len, route_match->next_hop);
-				get_interface_mac(route_match->interface, eth_hdr->ethr_shost);
-				memcpy(eth_hdr->ethr_dhost, arp_entry->mac, 6 * sizeof(uint8_t));
+
 				ip_hdr->checksum = 0;
 				new_checksum = checksum((uint16_t *)ip_hdr, sizeof(struct ip_hdr));
 				ip_hdr->checksum = htons(new_checksum);
-				send_to_link(len, buf, route_match->interface);
+				// implementare logica arp
+				struct arp_table_entry *arp_entry = find_arp_entry(arp_table, arp_table_len, route_match->next_hop);
+				get_interface_mac(route_match->interface, eth_hdr->ethr_shost);
+				if (arp_entry == NULL)
+				{
+					void *packet = malloc(MAX_PACKET_LEN);
+					memcpy(packet, buf, MAX_PACKET_LEN);
+					queue_enq(packets, (void *)packet);
+					send_arp_req(route_match->interface, route_match->next_hop);
+				}
+				else
+				{
+					memcpy(eth_hdr->ethr_dhost, arp_entry->mac, 6);
+					send_to_link(len, buf, route_match->interface);
+				}
 			}
 			break;
 
 		case ETHERTYPE_ARP:
+		{
+
 			// de impementat ARP
 			struct arp_hdr *arp_hdr = (struct arp_hdr *)(buf + (sizeof(struct ether_hdr)));
+			if (ntohs(arp_hdr->opcode) == ARP_OPCODE_REQ)
+			{
+				uint32_t ip_sursa = ntohl(arp_hdr->sprotoa); // sursa ca vreau sa ma intorc cu raspuns
+															 // aflam val urm nod
+
+				// aici fac ceva dubios?!?!
+				// struct node *best_match = best_match_node(prefix_tree_root, ip_sursa); // nodul din trie care se potriveste
+				// if (best_match == NULL)
+				// {
+				// 	// nu s-a gasit nimic despre ip in tabela
+				// 	continue;
+				// }
+				// struct route_table_entry *route_match = best_match->info; // match-ul cu urmatorul nod
+
+				// if (arp_hdr->tprotoa == inet_addr(get_interface_ip(interface)))
+				// {
+				// pun mac-ul interfetei atat in arp cat si in eth:
+				send_arp_reply(buf, len, interface);
+				// }
+			}
+			else if (ntohs(arp_hdr->opcode) == ARP_OPCODE_RECV)
+			{
+				// inseamna ca am primit un reply si trebuie sa parcurg toate
+				// pachetele din coada si sa le trimit
+				// pun in tabela perechea de ip si mac
+				arp_table[arp_table_len].ip = arp_hdr->sprotoa;
+				memcpy(arp_table[arp_table_len].mac, arp_hdr->shwa, 6);
+				arp_table_len++;
+				queue new_queue = create_queue();
+				while (!queue_empty(packets))
+				{
+					char *pkt = queue_deq(packets);
+
+					struct ether_hdr *eth_hdr = (struct ether_hdr *)pkt;
+					struct ip_hdr *ip_hdr = (struct ip_hdr *)(pkt + sizeof(struct ether_hdr));
+
+					struct route_table_entry *best_match = best_match_node(prefix_tree_root, ntohl(ip_hdr->dest_addr))->info;
+					if (arp_hdr->sprotoa == best_match->next_hop)
+					{
+						memcpy(eth_hdr->ethr_dhost, arp_hdr->shwa, 6);
+						send_to_link(MAX_PACKET_LEN, pkt, best_match->interface);
+						free(pkt);
+					}
+					else
+					{
+						// daca nu o sa pun pachetul inapoi in coada
+						queue_enq(new_queue, pkt);
+					}
+				}
+				packets = new_queue;
+			}
+
 			break;
+		}
 		default:
 			printf("Routerul nu cunoaste acest tip de protocol, dam drop la pachet");
 			continue;

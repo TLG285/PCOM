@@ -186,7 +186,7 @@ struct route_table_entry *find_route_table_match(struct route_table_entry *route
 */
 void send_icmp_dest(char *buf, int interface)
 {
-	char frame[MAX_PACKET_LEN];
+	char *frame = calloc(MAX_PACKET_LEN, sizeof(char));
 	struct ether_hdr *eth_hdr = (struct ether_hdr *)buf;
 	struct ip_hdr *ip_hdr = (struct ip_hdr *)(buf + sizeof(struct ether_hdr));
 	struct icmp_hdr *icmp_hdr = (struct icmp_hdr *)(frame + sizeof(struct ether_hdr) + sizeof(struct ip_hdr));
@@ -230,13 +230,14 @@ void send_icmp_dest(char *buf, int interface)
 	icmp_hdr->check = checksum((uint16_t *)icmp_hdr, sizeof(struct icmp_hdr));
 	// schimbam dimensiunea ip_hdr
 	ip_hdr->tot_len = htons(sizeof(struct ip_hdr) + sizeof(struct icmp_hdr) + sizeof(struct ip_hdr) + 8);
+	ip_hdr->proto = 1;
 
 	// trimit pachetul
 	send_to_link(MAX_PACKET_LEN, frame, interface);
 }
 void send_icmp_time(char *buf, int interface)
 {
-	char frame[MAX_PACKET_LEN];
+	char *frame = calloc(MAX_PACKET_LEN, sizeof(char));
 	struct ether_hdr *eth_hdr = (struct ether_hdr *)buf;
 	struct ip_hdr *ip_hdr = (struct ip_hdr *)(buf + sizeof(struct ether_hdr));
 	struct icmp_hdr *icmp_hdr = (struct icmp_hdr *)(frame + sizeof(struct ether_hdr) + sizeof(struct ip_hdr));
@@ -282,11 +283,12 @@ void send_icmp_time(char *buf, int interface)
 	// schimbam dimensiunea ip_hdr
 	ip_hdr->tot_len = htons(sizeof(struct ip_hdr) + sizeof(struct icmp_hdr) + sizeof(struct ip_hdr) + 8);
 	//  trimit pachetul
+	ip_hdr->proto = 1;
 	send_to_link(ICMP_PACKET_LEN, frame, interface);
 }
 void send_icmp(char *buf, int interface, int type, int code)
 {
-	char frame[MAX_PACKET_LEN];
+	char *frame = calloc(MAX_PACKET_LEN, sizeof(char));
 	struct ether_hdr *eth_hdr = (struct ether_hdr *)buf;
 	struct ip_hdr *ip_hdr = (struct ip_hdr *)(buf + sizeof(struct ether_hdr));
 	struct icmp_hdr *icmp_hdr = (struct icmp_hdr *)(frame + sizeof(struct ether_hdr) + sizeof(struct ip_hdr));
@@ -331,6 +333,7 @@ void send_icmp(char *buf, int interface, int type, int code)
 	checksum((uint16_t *)icmp_hdr, sizeof(struct icmp_hdr));
 	// schimbam dimensiunea ip_hdr
 	ip_hdr->tot_len = htons(sizeof(struct ip_hdr) + sizeof(struct icmp_hdr) + sizeof(struct ip_hdr) + 8);
+	ip_hdr->proto = 1;
 	//  trimit pachetul
 	send_to_link(ICMP_PACKET_LEN, frame, interface);
 }
@@ -427,6 +430,7 @@ int main(int argc, char *argv[])
 			uint32_t ip_interfata = inet_addr(get_interface_ip(interface)); // valoarea adresei in format big endian, mare atentie
 			if (ip_hdr->dest_addr == ip_hdr->source_addr)
 			{
+				send_icmp(buf, interface, 11, 0);
 				continue;
 			}
 			if (ip_hdr->dest_addr == ip_interfata)
@@ -530,6 +534,14 @@ int main(int argc, char *argv[])
 					struct ip_hdr *ip_hdr = (struct ip_hdr *)(pkt + sizeof(struct ether_hdr));
 
 					struct route_table_entry *best_match = best_match_node(prefix_tree_root, ntohl(ip_hdr->dest_addr))->info;
+					if (best_match == NULL)
+					{
+						// trimite catre un host necunoscut
+						// TO DO: ICMP de tip Destination unreachable
+						// nu exista destinatie pentru acest caz
+						send_icmp_dest(buf, interface);
+						continue;
+					}
 					if (arp_hdr->sprotoa == best_match->next_hop)
 					{
 						memcpy(eth_hdr->ethr_dhost, arp_hdr->shwa, 6);

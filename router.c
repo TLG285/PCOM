@@ -12,6 +12,8 @@
 #define ARP_OPCODE_RECV 2
 #define TIME_EXCEDED_CODE 0
 #define TIME_EXCEDED_TYPE 11
+#define ECHO_REPLY_TYPE 0
+#define ECHO_REPLY_CODE 0
 #define DEST_UNREACHABLE_CODE 0
 #define DEST_UNREACHABLE_TYPE 3
 #define ICMP_PACKET_LEN (sizeof(struct ether_hdr) + 2 * sizeof(struct ip_hdr) + 8 + sizeof(struct icmp_hdr))
@@ -182,110 +184,8 @@ struct route_table_entry *find_route_table_match(struct route_table_entry *route
 	@buf frame-ul initial care trebuie trimis
 	@code cod-ul pentru icmp
 	@type tipul de request icmp
-	@out_interface interfata pe unde se trimit pachetele
+	@interface interfata pe unde se trimit pachetele
 */
-void send_icmp_dest(char *buf, int interface)
-{
-	char *frame = calloc(MAX_PACKET_LEN, sizeof(char));
-	struct ether_hdr *eth_hdr = (struct ether_hdr *)buf;
-	struct ip_hdr *ip_hdr = (struct ip_hdr *)(buf + sizeof(struct ether_hdr));
-	struct icmp_hdr *icmp_hdr = (struct icmp_hdr *)(frame + sizeof(struct ether_hdr) + sizeof(struct ip_hdr));
-
-	icmp_hdr->mtype = DEST_UNREACHABLE_TYPE;
-	icmp_hdr->mcode = DEST_UNREACHABLE_CODE;
-
-	// (ETH_header + IP_header + ICMP_header + IP_header initial + 8 octeti din payload-ul IP)
-	// payload (imediat de dupa ip header)
-	// Copiem cei 64 biti inainte de a modifica payload-ul de dupa ip header in icmp(payload)
-	memcpy(frame, eth_hdr, sizeof(struct ether_hdr));
-	memcpy(frame + sizeof(struct ether_hdr), ip_hdr, sizeof(struct ip_hdr));
-	// adaug header-ul icmp
-	memcpy(frame + sizeof(struct ether_hdr) + sizeof(struct ip_hdr), icmp_hdr, sizeof(struct icmp_hdr));
-	// adaug header-ul ip initial
-	memcpy(frame + sizeof(struct ether_hdr) + sizeof(struct ip_hdr) + sizeof(struct icmp_hdr),
-		   buf + sizeof(struct ether_hdr), sizeof(struct ip_hdr));
-	memcpy(frame + sizeof(struct ether_hdr) + 2 * sizeof(struct ip_hdr) + sizeof(struct icmp_hdr),
-		   buf + sizeof(struct ether_hdr) + sizeof(struct ip_hdr), 8);
-
-	// lucram cu frame-ul acum:
-	eth_hdr = (struct ether_hdr *)frame;
-	ip_hdr = (struct ip_hdr *)(frame + sizeof(struct ether_hdr));
-	icmp_hdr = (struct icmp_hdr *)(frame + sizeof(struct ether_hdr) + sizeof(struct ip_hdr));
-
-	// schimb adresele mac:
-	uint8_t tmp_mac[6];
-	memcpy(tmp_mac, eth_hdr->ethr_shost, 6);
-	memcpy(eth_hdr->ethr_dhost, eth_hdr->ethr_shost, 6);
-	memcpy(eth_hdr->ethr_shost, tmp_mac, 6);
-	// schimb adresele ip:
-	uint32_t tmp_ip = ip_hdr->source_addr;
-	ip_hdr->source_addr = ip_hdr->dest_addr;
-	ip_hdr->dest_addr = ip_hdr->source_addr;
-	// resetez ttl:
-	ip_hdr->ttl = 64;
-	// calculez checksum ip + icmp
-	ip_hdr->checksum = 0;
-	ip_hdr->checksum = checksum((uint16_t *)ip_hdr, sizeof(struct ip_hdr));
-	icmp_hdr->check = 0;
-	icmp_hdr->check = checksum((uint16_t *)icmp_hdr, sizeof(struct icmp_hdr));
-	// schimbam dimensiunea ip_hdr
-	ip_hdr->tot_len = htons(sizeof(struct ip_hdr) + sizeof(struct icmp_hdr) + sizeof(struct ip_hdr) + 8);
-	ip_hdr->proto = 1;
-
-	// trimit pachetul
-	send_to_link(MAX_PACKET_LEN, frame, interface);
-}
-void send_icmp_time(char *buf, int interface)
-{
-	char *frame = calloc(MAX_PACKET_LEN, sizeof(char));
-	struct ether_hdr *eth_hdr = (struct ether_hdr *)buf;
-	struct ip_hdr *ip_hdr = (struct ip_hdr *)(buf + sizeof(struct ether_hdr));
-	struct icmp_hdr *icmp_hdr = (struct icmp_hdr *)(frame + sizeof(struct ether_hdr) + sizeof(struct ip_hdr));
-
-	icmp_hdr->mtype = TIME_EXCEDED_TYPE;
-	icmp_hdr->mcode = TIME_EXCEDED_CODE;
-
-	// (ETH_header + IP_header + ICMP_header + IP_header initial + 8 octeti din payload-ul IP)
-	// payload (imediat de dupa ip header)
-	// Copiem cei 64 biti inainte de a modifica payload-ul de dupa ip header in icmp(payload)
-	memcpy(frame, eth_hdr, sizeof(struct ether_hdr));
-	memcpy(frame + sizeof(struct ether_hdr), ip_hdr, sizeof(struct ip_hdr));
-	// adaug header-ul icmp
-	memcpy(frame + sizeof(struct ether_hdr) + sizeof(struct ip_hdr), icmp_hdr, sizeof(struct icmp_hdr));
-	// adaug header-ul ip initial
-	memcpy(frame + sizeof(struct ether_hdr) + sizeof(struct ip_hdr) + sizeof(struct icmp_hdr),
-		   buf + sizeof(struct ether_hdr), sizeof(struct ip_hdr));
-	// pun cei 8 bytes din buffer-ul original
-	memcpy(frame + sizeof(struct ether_hdr) + 2 * sizeof(struct ip_hdr) + sizeof(struct icmp_hdr),
-		   buf + sizeof(struct ether_hdr) + sizeof(struct ip_hdr), 8);
-
-	// lucram cu frame-ul acum:
-	eth_hdr = (struct ether_hdr *)frame;
-	ip_hdr = (struct ip_hdr *)(frame + sizeof(struct ether_hdr));
-	icmp_hdr = (struct icmp_hdr *)(frame + sizeof(struct ether_hdr) + sizeof(struct ip_hdr));
-
-	// schimb adresele mac:
-	uint8_t tmp_mac[6];
-	memcpy(tmp_mac, eth_hdr->ethr_shost, 6);
-	memcpy(eth_hdr->ethr_dhost, eth_hdr->ethr_shost, 6);
-	memcpy(eth_hdr->ethr_shost, tmp_mac, 6);
-	// schimb adresele ip:
-	uint32_t tmp_ip = ip_hdr->source_addr;
-	ip_hdr->source_addr = ip_hdr->dest_addr;
-	ip_hdr->dest_addr = ip_hdr->source_addr;
-	// resetez ttl:
-	ip_hdr->ttl = 64;
-	// calculez checksum ip + icmp
-	ip_hdr->checksum = 0;
-	checksum((uint16_t *)ip_hdr, sizeof(struct ip_hdr));
-	icmp_hdr->check = 0;
-	checksum((uint16_t *)icmp_hdr, sizeof(struct icmp_hdr));
-	// schimbam dimensiunea ip_hdr
-	ip_hdr->tot_len = htons(sizeof(struct ip_hdr) + sizeof(struct icmp_hdr) + sizeof(struct ip_hdr) + 8);
-	//  trimit pachetul
-	ip_hdr->proto = 1;
-	send_to_link(ICMP_PACKET_LEN, frame, interface);
-}
 void send_icmp(char *buf, int interface, int type, int code)
 {
 	char *frame = calloc(MAX_PACKET_LEN, sizeof(char));
@@ -430,7 +330,7 @@ int main(int argc, char *argv[])
 			uint32_t ip_interfata = inet_addr(get_interface_ip(interface)); // valoarea adresei in format big endian, mare atentie
 			if (ip_hdr->dest_addr == ip_hdr->source_addr)
 			{
-				send_icmp(buf, interface, 11, 0);
+				send_icmp(buf, interface, TIME_EXCEDED_TYPE, TIME_EXCEDED_CODE);
 				continue;
 			}
 			if (ip_hdr->dest_addr == ip_interfata)
@@ -439,7 +339,7 @@ int main(int argc, char *argv[])
 				// trebuie sa verific daca e de tip icmp
 				if (ip_hdr->proto == 1)
 				{
-					send_icmp(buf, interface, 0, 0);
+					send_icmp(buf, interface, ECHO_REPLY_TYPE, ECHO_REPLY_CODE);
 				}
 				// daca e de tip icmp o sa trimit un req
 			}
@@ -464,20 +364,20 @@ int main(int argc, char *argv[])
 					// trimite catre un host necunoscut
 					// TO DO: ICMP de tip Destination unreachable
 					// nu exista destinatie pentru acest caz
-					send_icmp_dest(buf, interface);
+					send_icmp(buf, interface, DEST_UNREACHABLE_TYPE, DEST_UNREACHABLE_CODE);
 					continue;
 				}
 				struct route_table_entry *route_match = best_match->info;
 				if (route_match == NULL)
 				{
-					send_icmp_dest(buf, interface);
+					send_icmp(buf, interface, DEST_UNREACHABLE_TYPE, DEST_UNREACHABLE_CODE);
 					continue;
 				}
 				if (ip_hdr->ttl <= 1)
 				{
 					// va trebui sa intorc la sursa un pachet ICMP cu mesajul Time exceded
 					// trebuie modificat header-ul curent sa trimita unde trebuie
-					send_icmp_time(buf, interface);
+					send_icmp(buf, interface, TIME_EXCEDED_TYPE, TIME_EXCEDED_CODE);
 					continue;
 				}
 
@@ -539,7 +439,7 @@ int main(int argc, char *argv[])
 						// trimite catre un host necunoscut
 						// TO DO: ICMP de tip Destination unreachable
 						// nu exista destinatie pentru acest caz
-						send_icmp_dest(buf, interface);
+						send_icmp(buf, interface, DEST_UNREACHABLE_TYPE, DEST_UNREACHABLE_CODE);
 						continue;
 					}
 					if (arp_hdr->sprotoa == best_match->next_hop)

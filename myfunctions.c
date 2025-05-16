@@ -148,7 +148,7 @@ char *extract_sv_resp_status(char *response)
     }
     JSON_Object *root_obj = json_value_get_object(root_val);
 
-    char *first_key = json_object_get_name(root_obj, 0);
+    const char *first_key = json_object_get_name(root_obj, 0);
     if (first_key == NULL)
     {
         json_value_free(root_val);
@@ -226,7 +226,7 @@ char *login_admin()
     sockfd = open_connection(SERVERADDR, PORT, AF_INET, SOCK_STREAM, 0);
     char *message = compute_post_request(SVPORT, "/api/v1/tema/admin/login",
                                          "application/json", body_data, 1,
-                                         NULL, 0, NULL, NULL);
+                                         NULL, 0, NULL, 0);
     // printf("\nmesajul trimis catre server:\n%s\n", message);
     send_to_server(sockfd, message);
 
@@ -282,7 +282,7 @@ char *add_user(char **cookies, int cookies_number)
     sockfd = open_connection(SERVERADDR, PORT, AF_INET, SOCK_STREAM, 0);
     char *message = compute_post_request(SVPORT, "/api/v1/tema/admin/users",
                                          "application/json", body_data, 1,
-                                         cookies, cookies_number, NULL, NULL);
+                                         cookies, cookies_number, NULL, 0);
     // printf("\nmesajul trimis catre server:\n%s\n", message);
     send_to_server(sockfd, message);
     char *response = receive_from_server(sockfd);
@@ -306,7 +306,7 @@ char *get_users(char **cookies, int cookies_number)
     // Login into server
     sockfd = open_connection(SERVERADDR, PORT, AF_INET, SOCK_STREAM, 0);
     char *message = compute_get_request(SVPORT, "/api/v1/tema/admin/users",
-                                        NULL, cookies, cookies_number, NULL, NULL);
+                                        NULL, cookies, cookies_number, NULL, 0);
     // printf("\nmesajul trimis catre server:\n%s\n", message);
     send_to_server(sockfd, message);
     char *response = receive_from_server(sockfd);
@@ -363,7 +363,7 @@ char *delete_user(char **cookies, int cookies_number)
     sprintf(url, "/api/v1/tema/admin/users/%s", username);
     // printf("\nurl: %s\n", url);
     char *message = compute_delete_request(SVPORT, url, "application/json",
-                                           cookies, cookies_number, NULL, NULL);
+                                           cookies, cookies_number, NULL, 0);
     // printf("\nmesajul trimis catre server:\n%s\n", message);
     send_to_server(sockfd, message);
     char *response = receive_from_server(sockfd);
@@ -380,7 +380,7 @@ char *logout_admin(char **cookies, int cookies_number)
     // Login into server
     sockfd = open_connection(SERVERADDR, PORT, AF_INET, SOCK_STREAM, 0);
     char *message = compute_get_request(SVPORT, "/api/v1/tema/admin/logout",
-                                        NULL, cookies, cookies_number, NULL, NULL);
+                                        NULL, cookies, cookies_number, NULL, 0);
     // printf("\nmesajul trimis catre server:\n%s\n", message);
     send_to_server(sockfd, message);
     char *response = receive_from_server(sockfd);
@@ -420,15 +420,11 @@ char *login(char **cookies, int cookies_number)
     sockfd = open_connection(SERVERADDR, PORT, AF_INET, SOCK_STREAM, 0);
     char *message = compute_post_request(SVPORT, "/api/v1/tema/user/login",
                                          "application/json", body_data, 1,
-                                         cookies, cookies_number, NULL, NULL);
+                                         cookies, cookies_number, NULL, 0);
     // printf("\nmesajul trimis catre server:\n%s\n", message);
     send_to_server(sockfd, message);
 
     char *response = strdup(receive_from_server(sockfd));
-    char *status = extract_sv_resp_status(response);
-
-    // printf("%s\n", response);
-    // printf("statusul primit:%s\n", status);
     close(sockfd);
     free(message);
     free(body_data[0]);
@@ -441,11 +437,9 @@ char *login(char **cookies, int cookies_number)
 char *logout(char **cookies, int cookies_number)
 {
     int sockfd;
-    char username[FIELD_SIZE];
-    // Login into server
     sockfd = open_connection(SERVERADDR, PORT, AF_INET, SOCK_STREAM, 0);
     char *message = compute_get_request(SVPORT, "/api/v1/tema/user/logout",
-                                        NULL, cookies, cookies_number, NULL, NULL);
+                                        NULL, cookies, cookies_number, NULL, 0);
     // printf("\nmesajul trimis catre server:\n%s\n", message);
     send_to_server(sockfd, message);
     char *response = receive_from_server(sockfd);
@@ -463,7 +457,7 @@ char *get_access(char **cookies, int cookies_number)
     // Login into server
     sockfd = open_connection(SERVERADDR, PORT, AF_INET, SOCK_STREAM, 0);
     char *message = compute_get_request(SVPORT, "/api/v1/tema/library/access",
-                                        NULL, cookies, cookies_number, NULL, NULL);
+                                        NULL, cookies, cookies_number, NULL, 0);
     // printf("\nmesajul trimis catre server:\n%s\n", message);
     send_to_server(sockfd, message);
     char *response = receive_from_server(sockfd);

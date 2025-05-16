@@ -61,7 +61,8 @@ char *compute_get_request(char *host, char *url, char *query_params,
 }
 
 char *compute_post_request(char *host, char *url, char *content_type, char **body_data,
-                           int body_data_fields_count, char **cookies, int cookies_count, char **jwt, int jwt_count)
+                           int body_data_fields_count, char **cookies,
+                           int cookies_count, char **jwt, int jwt_count)
 {
     char *message = calloc(BUFLEN, sizeof(char));
     char *line = calloc(LINELEN, sizeof(char));
@@ -129,7 +130,8 @@ char *compute_post_request(char *host, char *url, char *content_type, char **bod
     return message;
 }
 
-char *compute_delete_request(char *host, char *url, char *content_type, char **cookies, int cookies_count, char **jwt, int jwt_count)
+char *compute_delete_request(char *host, char *url, char *content_type,
+                             char **cookies, int cookies_count, char **jwt, int jwt_count)
 {
     char *message = calloc(BUFLEN, sizeof(char));
     char *line = calloc(LINELEN, sizeof(char));
@@ -182,7 +184,8 @@ char *compute_delete_request(char *host, char *url, char *content_type, char **c
 }
 
 char *compute_put_request(char *host, char *url, char *content_type, char **body_data,
-                          int body_data_fields_count, char **cookies, int cookies_count, char **jwt, int jwt_count)
+                          int body_data_fields_count, char **cookies,
+                          int cookies_count, char **jwt, int jwt_count)
 {
     char *message = calloc(BUFLEN, sizeof(char));
     char *line = calloc(LINELEN, sizeof(char));

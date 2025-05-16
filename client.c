@@ -340,7 +340,7 @@ void run_client()
             }
             break;
         case EXIT:
-            return 0;
+            return;
         case UNKNOWN:
         default:
             break;

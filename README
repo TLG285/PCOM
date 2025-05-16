@@ -1,0 +1,34 @@
+completarea laboratorului
+
+am completat mesajul care era trimis catre server prin adaugarea hostului, din cauza ca nu era adaugat, 
+nu se stia hostul si dadea error 400 unreachable
+am facut partea de compute post request care trimite un buffer cu campuri serverului
+pentru a verifica daca chiar se trimite mi-am facut un buffer cu doua campuri si l-am dat ca parametru functiei
+am intrat pe wireshark si am pus la filter (ip.addr == 54.217.160.10) && (tcp.port == 8080)
+ca sa pot sa vad exact ce se trimite pe partea de http
+am setat campurile din bufferul trimis username=student si password=student
+ca sa rezolv problema de trimitere a mesajelor, am inchis conexiunea de fiecare data cu serverul, si am redeschis socketul 
+
+probleme pe partea de logare/delogare a adminului, in momentul in care dadeam logout, nu scadeam cookie-ul si implicit
+pastram cookie-ul care era expirat si din cauza asta nu puteam sa ma loghez ulterior la alti useri, primeam 403 already logged-in
+am resetat cookie-ul de fiecare data cand deloghez un utilizator, clientul va tine minte un singur cookie acum
+
+am modificat functiile din laborator astfel incat sa pot sa trimit si jwt token-ul in mesajul pe care il trimit server-ului
+pentru fiecare comanda in parte am facut cate o functie care indeplineste functionalitatea acelei comenzi si intoarce raspunsul de
+la server, in functie de acest raspuns se extrage payload-ul json si se prelucreaza datele pentru fiecare tip de output
+daca avem eroare, serverul intoarce error in acel payload de cele mai multe ori, daca avem succes va intoarce message/id/ un camp specific
+cu care are trebui sa inceapa acel payload daca comanda a fost facuta cu SUCCESS
+
+au fost probleme cu cerinta temei, spre exemplu, credeam ca trebuie sa afisez pozitia curenta la comanda de get_collections, si nu id-ul, pentru 
+mine cel putin nu a fost suficent de clara cerinta, si din motivul asta, accesam in loc de id-ul colectiei/ al filmului, accesam pozitia la care se
+afla filmul/colectia si primeam 405 NOT FOUND, mi-a luat ceva sa imi dau seama ce fac gresit
+
+alta problema a fost la formatarea url-ului, in cerinta temei aveam Ruta de acces: GET /api/v1/tema/library/movies/:movieId
+si initial l-am formatat si cu acele puncte inaintea id-ului pe care ar fi trebuit sa il aiba filmul
+
+cand nu imi functionau comenzile, am intrat cu gdb si am verificat campurile, am avut probleme de formatare, probleme cu \n care ramanea dupa ce dadeam 
+scanf, pe care le-am rezolvat cu getchar().
+
+ca si concluzie, a fost o tema putin repetitva dar buna pentru a intelege cum functioneaza http-ul, pe viitor ar fi super daca am putea avea acces si la
+codul sursa al serverului, initial serverul a tot picat si am crezut ca fac eu ceva gresit, tot primeam 500 error dar s-a dovedit a fi eroare din 
+partea serverului

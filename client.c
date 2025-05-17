@@ -83,8 +83,7 @@ void run_client()
             cookies[current_cookie] = extract_cookie(response);
             // printf("cookie: %s", extract_cookie(response));
             current_cookie++;
-            JSON_Value *root_val = json_parse_string(extract_json_payload(response));
-            char *status = extract_sv_resp_status(response);
+            const char *status = extract_sv_resp_status(response);
             if (strstr(status, "error") != NULL)
             {
                 printf("ERROR: Credidentiale gresite pentru admin\n");
@@ -100,7 +99,6 @@ void run_client()
             break;
         case ADD_USER:
             response = add_user(cookies, current_cookie);
-            root_val = json_parse_string(extract_json_payload(response));
             status = extract_sv_resp_status(response);
             if (strstr(status, "error") != NULL)
             {
@@ -181,8 +179,8 @@ void run_client()
             {
                 response = get_access(cookies, current_cookie);
                 status = extract_sv_resp_status(response);
-                char *jwt = extract_JWT(response);
-                JWT[current_jwt] = jwt;
+                const char *jwt = extract_JWT(response);
+                JWT[current_jwt] = (char *)jwt;
                 current_jwt += 1;
                 if (strstr(status, "error") != NULL)
                 {

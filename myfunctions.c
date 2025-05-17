@@ -71,7 +71,7 @@ void print_collections(char *response)
         JSON_Object *collection = json_array_get_object(collections, i);
         const char *title = json_object_get_string(collection, "title");
         int id = (int)json_object_get_number(collection, "id");
-        printf("#%zu: %s\n", id, title);
+        printf("#%u: %s\n", id, title);
     }
 
     json_value_free(root_value);
@@ -84,7 +84,7 @@ void print_movies_array(char *response)
     if (root_val == NULL)
     {
         fprintf(stderr, "Eroare: JSON invalid.\n");
-        return NULL;
+        return;
     }
 
     JSON_Object *root_obj = json_value_get_object(root_val);
@@ -94,7 +94,7 @@ void print_movies_array(char *response)
     {
         fprintf(stderr, "Eroare: nu există câmpul \"movies\".\n");
         json_value_free(root_val);
-        return NULL;
+        return;
     }
 
     printf("SUCCESS: Lista filmelor:\n");
@@ -117,7 +117,7 @@ void print_movies_array(char *response)
 /// @brief functie care intoarece statusul raspunsuslui din partea serverului
 /// @param response raspunsul primit de la server
 /// @return ERROR/ SUCCESS/ NULL daca nu s-a primit raspuns
-char *extract_JWT(char *response)
+const char *extract_JWT(char *response)
 {
     char *json_payload = extract_json_payload(response);
     JSON_Value *root_val = json_parse_string(json_payload);
@@ -137,7 +137,7 @@ char *extract_JWT(char *response)
     return token;
 }
 
-char *extract_sv_resp_status(char *response)
+const char *extract_sv_resp_status(char *response)
 {
     char *json_payload = extract_json_payload(response);
     JSON_Value *root_val = json_parse_string(json_payload);

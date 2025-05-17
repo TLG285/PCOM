@@ -90,7 +90,7 @@ char *compute_post_request(char *host, char *url, char *content_type, char **bod
         sprintf(body_data_buffer, "%s%s", body_data_buffer, body_data[i]);
     }
     // adaug content-length
-    sprintf(line, "Content-Length: %d", strlen(body_data_buffer));
+    sprintf(line, "Content-Length: %ld", strlen(body_data_buffer));
     compute_message(message, line);
 
     // Step 4 (optional): add cookies
@@ -213,7 +213,7 @@ char *compute_put_request(char *host, char *url, char *content_type, char **body
         sprintf(body_data_buffer, "%s%s", body_data_buffer, body_data[i]);
     }
     // adaug content-length
-    sprintf(line, "Content-Length: %d", strlen(body_data_buffer));
+    sprintf(line, "Content-Length: %ld", strlen(body_data_buffer));
     compute_message(message, line);
 
     // Step 4 (optional): add cookies

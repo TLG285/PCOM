@@ -14,7 +14,7 @@ char *compute_get_request(char *host, char *url, char *query_params,
 {
     char *message = calloc(BUFLEN, sizeof(char));
     char *line = calloc(LINELEN, sizeof(char));
-
+    char tmp[LINELEN];
     // Step 1: write the method name, URL, request params (if any) and protocol type
     if (query_params != NULL)
     {
@@ -37,9 +37,11 @@ char *compute_get_request(char *host, char *url, char *query_params,
         sprintf(line, "Cookie: ");
         for (int i = 0; i < cookies_count - 1; i++)
         {
-            sprintf(line, "%s%s; ", line, cookies[i]);
+            snprintf(tmp, LINELEN, "%s%s; ", line, cookies[i]);
+            strcpy(line, tmp);
         }
-        sprintf(line, "%s%s", line, cookies[cookies_count - 1]);
+        snprintf(tmp, LINELEN, "%s%s", line, cookies[cookies_count - 1]);
+        strcpy(line, tmp);
         compute_message(message, line);
     }
 
@@ -49,9 +51,11 @@ char *compute_get_request(char *host, char *url, char *query_params,
         sprintf(line, "Authorization: Bearer ");
         for (int i = 0; i < jwt_count - 1; i++)
         {
-            sprintf(line, "%s%s; ", line, jwt[i]);
+            snprintf(tmp, LINELEN, "%s%s; ", line, jwt[i]);
+            strcpy(line, tmp);
         }
-        sprintf(line, "%s%s", line, jwt[jwt_count - 1]);
+        snprintf(tmp, LINELEN, "%s%s", line, jwt[jwt_count - 1]);
+        strcpy(line, tmp);
         compute_message(message, line);
     }
 
@@ -67,7 +71,7 @@ char *compute_post_request(char *host, char *url, char *content_type, char **bod
     char *message = calloc(BUFLEN, sizeof(char));
     char *line = calloc(LINELEN, sizeof(char));
     char *body_data_buffer = calloc(LINELEN, sizeof(char));
-
+    char tmp[LINELEN];
     // Step 1: write the method name, URL and protocol type
     sprintf(line, "POST %s HTTP/1.1", url);
     compute_message(message, line);
@@ -87,7 +91,8 @@ char *compute_post_request(char *host, char *url, char *content_type, char **bod
 
     for (int i = 0; i < body_data_fields_count; i++)
     {
-        sprintf(body_data_buffer, "%s%s", body_data_buffer, body_data[i]);
+        snprintf(tmp, LINELEN, "%s%s", body_data_buffer, body_data[i]);
+        strcpy(body_data_buffer, tmp);
     }
     // adaug content-length
     sprintf(line, "Content-Length: %ld", strlen(body_data_buffer));
@@ -96,24 +101,29 @@ char *compute_post_request(char *host, char *url, char *content_type, char **bod
     // Step 4 (optional): add cookies
     if (cookies != NULL)
     {
+        // TO DO: adauga cookies in message pentru a trimite un mesaj complet
         sprintf(line, "Cookie: ");
         for (int i = 0; i < cookies_count - 1; i++)
         {
-            sprintf(line, "%s%s; ", line, cookies[i]);
+            snprintf(tmp, LINELEN, "%s%s; ", line, cookies[i]);
+            strcpy(line, tmp);
         }
-        sprintf(line, "%s%s", line, cookies[cookies_count - 1]);
+        snprintf(tmp, LINELEN, "%s%s", line, cookies[cookies_count - 1]);
+        strcpy(line, tmp);
         compute_message(message, line);
     }
 
     if (jwt != NULL)
     {
-        // TO DO: adauga jwt token in message
+        // TO DO: adauga cookies in message pentru a trimite un mesaj complet
         sprintf(line, "Authorization: Bearer ");
         for (int i = 0; i < jwt_count - 1; i++)
         {
-            sprintf(line, "%s%s; ", line, jwt[i]);
+            snprintf(tmp, LINELEN, "%s%s; ", line, jwt[i]);
+            strcpy(line, tmp);
         }
-        sprintf(line, "%s%s", line, jwt[jwt_count - 1]);
+        snprintf(tmp, LINELEN, "%s%s", line, jwt[jwt_count - 1]);
+        strcpy(line, tmp);
         compute_message(message, line);
     }
 
@@ -135,7 +145,7 @@ char *compute_delete_request(char *host, char *url, char *content_type,
 {
     char *message = calloc(BUFLEN, sizeof(char));
     char *line = calloc(LINELEN, sizeof(char));
-
+    char tmp[LINELEN];
     // Step 1: write the method name, URL and protocol type
     sprintf(line, "DELETE %s HTTP/1.1", url);
     compute_message(message, line);
@@ -156,23 +166,29 @@ char *compute_delete_request(char *host, char *url, char *content_type,
     // Step 4 (optional): add cookies
     if (cookies != NULL)
     {
+        // TO DO: adauga cookies in message pentru a trimite un mesaj complet
         sprintf(line, "Cookie: ");
         for (int i = 0; i < cookies_count - 1; i++)
         {
-            sprintf(line, "%s%s; ", line, cookies[i]);
+            snprintf(tmp, LINELEN, "%s%s; ", line, cookies[i]);
+            strcpy(line, tmp);
         }
-        sprintf(line, "%s%s", line, cookies[cookies_count - 1]);
+        snprintf(tmp, LINELEN, "%s%s", line, cookies[cookies_count - 1]);
+        strcpy(line, tmp);
         compute_message(message, line);
     }
+
     if (jwt != NULL)
     {
-        // TO DO: adauga jwt token in message
+        // TO DO: adauga cookies in message pentru a trimite un mesaj complet
         sprintf(line, "Authorization: Bearer ");
         for (int i = 0; i < jwt_count - 1; i++)
         {
-            sprintf(line, "%s%s; ", line, jwt[i]);
+            snprintf(tmp, LINELEN, "%s%s; ", line, jwt[i]);
+            strcpy(line, tmp);
         }
-        sprintf(line, "%s%s", line, jwt[jwt_count - 1]);
+        snprintf(tmp, LINELEN, "%s%s", line, jwt[jwt_count - 1]);
+        strcpy(line, tmp);
         compute_message(message, line);
     }
     // Step 5: add new line at end of header
@@ -190,7 +206,7 @@ char *compute_put_request(char *host, char *url, char *content_type, char **body
     char *message = calloc(BUFLEN, sizeof(char));
     char *line = calloc(LINELEN, sizeof(char));
     char *body_data_buffer = calloc(LINELEN, sizeof(char));
-
+    char tmp[LINELEN];
     // Step 1: write the method name, URL and protocol type
     sprintf(line, "PUT %s HTTP/1.1", url);
     compute_message(message, line);
@@ -210,7 +226,8 @@ char *compute_put_request(char *host, char *url, char *content_type, char **body
 
     for (int i = 0; i < body_data_fields_count; i++)
     {
-        sprintf(body_data_buffer, "%s%s", body_data_buffer, body_data[i]);
+        snprintf(tmp, LINELEN, "%s%s", body_data_buffer, body_data[i]);
+        strcpy(body_data_buffer, tmp);
     }
     // adaug content-length
     sprintf(line, "Content-Length: %ld", strlen(body_data_buffer));
@@ -219,24 +236,29 @@ char *compute_put_request(char *host, char *url, char *content_type, char **body
     // Step 4 (optional): add cookies
     if (cookies != NULL)
     {
+        // TO DO: adauga cookies in message pentru a trimite un mesaj complet
         sprintf(line, "Cookie: ");
         for (int i = 0; i < cookies_count - 1; i++)
         {
-            sprintf(line, "%s%s; ", line, cookies[i]);
+            snprintf(tmp, LINELEN, "%s%s; ", line, cookies[i]);
+            strcpy(line, tmp);
         }
-        sprintf(line, "%s%s", line, cookies[cookies_count - 1]);
+        snprintf(tmp, LINELEN, "%s%s", line, cookies[cookies_count - 1]);
+        strcpy(line, tmp);
         compute_message(message, line);
     }
 
     if (jwt != NULL)
     {
-        // TO DO: adauga jwt token in message
+        // TO DO: adauga cookies in message pentru a trimite un mesaj complet
         sprintf(line, "Authorization: Bearer ");
         for (int i = 0; i < jwt_count - 1; i++)
         {
-            sprintf(line, "%s%s; ", line, jwt[i]);
+            snprintf(tmp, LINELEN, "%s%s; ", line, jwt[i]);
+            strcpy(line, tmp);
         }
-        sprintf(line, "%s%s", line, jwt[jwt_count - 1]);
+        snprintf(tmp, LINELEN, "%s%s", line, jwt[jwt_count - 1]);
+        strcpy(line, tmp);
         compute_message(message, line);
     }
 
